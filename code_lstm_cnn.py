@@ -169,4 +169,18 @@ complex_history = complex_model.fit(
     verbose=2,
     shuffle=False
 )
+lstm_y_pred = complex_model.predict(pollutants_data_test)
+
+# plt.figure(figsize = (20,10))
+# plt.plot(pollutants_data_tr[-100:,:,0,0],pollutants_aqi[-100:],label = "Train")
+# plt.plot(pollutants_data_test[:100],pollutants_aqi_test[:100],label = "Test")
+# plt.plot(pollutants_data_test[:100],lstm_y_pred[:100],label = 'Predict')
+# plt.legend()
+# plt.show()
+
+plt.plot(pollutants_aqi[-100:],label = "Train")
+plt.plot(np.asarray(pollutants_aqi_test[:100]),label = "Test")
+plt.plot(np.asarray(lstm_y_pred[:100]),label = 'Predict')
+plt.legend()
+plt.show()
 
