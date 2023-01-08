@@ -96,59 +96,8 @@ pollutants_data_test=np.asarray(df_final_test)
 
 #%%
 
-df = pd.read_csv('data.csv') 
-print(df) 
-
-x_train = df[:24865]
-y_train = x_train['PM2.5']
-x_test = df[24865:31898]
-y_test = x_test['PM2.5']
-print(y_test)
-
-#Normalizing training data
-train_norm = x_train['PM2.5']
-
-#converted into array as all the methods available are for arrays and not lists
-train_norm_arr = np.asarray(train_norm)
-train_norm = np.reshape(train_norm_arr, (-1, 1))
-
-#Scaling all values between 0 and 1 so that large values don't just dominate
-scaler = MinMaxScaler(feature_range=(0, 1))
-train_norm = scaler.fit_transform(train_norm)
-for i in range(5):
-    print(train_norm[i])
-    
-count = 0
-for i in range(len(train_norm)):
-    if train_norm[i] == 0:
-        count = count +1
-print('Number of null values in train_norm = ', count)
-
-test_norm = x_test['PM2.5']
-test_norm_arr = np.asarray(test_norm)
-test_norm = np.reshape(test_norm_arr, (-1, 1))
-scaler = MinMaxScaler(feature_range=(0, 1))
-test_norm = scaler.fit_transform(test_norm)
-for i in range(5):
-    print(test_norm[i])
-    
-count = 0
-for i in range(len(test_norm)):
-    if test_norm[i] == 0:
-        count = count + 1 
-print('Number of null values in test_norm = ', count)
-
-test_norm = test_norm[test_norm != 0]
 
 #%%
-df = pd.read_csv('data.csv') 
-print(df) 
-
-x_train = df[:24865]
-y_train = x_train['PM2.5']
-x_test = df[24865:31898]
-y_test = x_test['PM2.5']
-print(y_test)
 
 #Normalizing training data
 train_norm = pollutants_data_tr[:,0]
