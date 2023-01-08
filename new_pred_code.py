@@ -169,7 +169,7 @@ for i in range(len(train_norm)):
         count = count +1
 print('Number of null values in train_norm = ', count)
 
-test_norm = pollutants_data_tr[:,0]
+test_norm = pollutants_data_test[:,0]
 test_norm_arr = np.asarray(test_norm)
 test_norm = np.reshape(test_norm_arr, (-1, 1))
 scaler = MinMaxScaler(feature_range=(0, 1))
