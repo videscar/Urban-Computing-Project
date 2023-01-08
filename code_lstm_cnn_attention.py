@@ -15,6 +15,7 @@ from keras.layers import Dropout
 from keras.layers import InputLayer
 
 
+#%%
 def add_months(sourcedate, months):
     month = sourcedate.month - 1 + months
     year = sourcedate.year + month // 12
@@ -38,8 +39,8 @@ def extract_data(dataset, pollutants):
         # Pick start and end date
         start_date = list(tmp['Date'])[0]
         start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-        end_date_tr = add_months(start_date, 2)
-        end_date_test = add_months(start_date, 3)
+        end_date_tr = add_months(start_date, 3)
+        end_date_test = add_months(start_date, 4)
         end_date_test = end_date_test.strftime("%Y-%m-%d")
         end_date_tr = end_date_tr.strftime("%Y-%m-%d")
         start_date = start_date.strftime("%Y-%m-%d")
@@ -54,33 +55,29 @@ def extract_data(dataset, pollutants):
         filtered_data_tr = pd.concat([filtered_data_tr, sel_dates_tr])
         filtered_data_test = pd.concat([filtered_data_test, sel_dates_test])
 
-    pollutants_data_tr = pd.DataFrame(filtered_data_tr, columns=pollutants)
+    pollutants_data_tr = pd.DataFrame(filtered_data_tr, columns=pollutants+['City', 'Date'])
     pollutants_labels_tr = pd.DataFrame(filtered_data_tr, columns=['City', 'Date'])
-    pollutants_aqi=pd.DataFrame(filtered_data_tr, columns=['AQI'])
-    pollutants_data_test = pd.DataFrame(filtered_data_test, columns=pollutants)
+    pollutants_aqi=pd.DataFrame(filtered_data_tr, columns=['AQI','City', 'Date'])
+    pollutants_data_test = pd.DataFrame(filtered_data_test, columns=pollutants+['City', 'Date'])
     pollutants_labels_test = pd.DataFrame(filtered_data_test, columns=['City', 'Date'])
-    pollutants_aqi_test=pd.DataFrame(filtered_data_test, columns=['AQI'])
+    pollutants_aqi_test=pd.DataFrame(filtered_data_test, columns=['AQI','City', 'Date'])
 
-    print("######## TRAINING: ########")
-    print(pollutants_data_tr)
-    print(pollutants_labels_tr)
 
-    print("######## TESt: ########")
-    print(pollutants_data_test)
-    print(pollutants_labels_test)
-    return pollutants_data_tr, pollutants_labels_tr, pollutants_aqi,pollutants_data_test,pollutants_labels_test, pollutants_aqi_test
-    
+    df_final_tr = pollutants_data_tr.merge(pollutants_labels_tr).set_index(['City', 'Date']).astype('float32')
+    pollutants_aqi_final = pollutants_aqi.merge(pollutants_labels_tr).set_index(['City', 'Date']).astype('float32')
+    df_final_test = pollutants_data_test.merge(pollutants_labels_test).set_index(['City', 'Date']).astype('float32')
+    pollutants_aqi_test_final = pollutants_aqi_test.merge(pollutants_labels_test).set_index(['City', 'Date']).astype('float32')
+
+    return df_final_tr, pollutants_aqi_final, df_final_test, pollutants_aqi_test_final
+
+
 file=r'C:\Users\priya\Downloads\Urban-Computing-Project-main\Urban-Computing-Project-main\city_day.csv'
 
-pollutants_data_tr, pollutants_labels_tr, pollutants_aqi,pollutants_data_test,pollutants_labels_test, pollutants_aqi_test=extract_data(file, ['CO', 'PM2.5', 'O3', 'NO2', 'SO2', 'PM10', 'NO'])
+df_final_tr, pollutants_aqi_final, df_final_test, pollutants_aqi_test_final = extract_data(file, ['CO', 'PM2.5', 'O3', 'NH3', 'SO2', 'PM10', 'NOx'])
 
-#%% Only LSTM
-pollutants_data_tr=np.asarray(pollutants_data_tr)
-pollutants_aqi=np.asarray(pollutants_aqi)
-pollutants_data_test=np.asarray(pollutants_data_test)
-
-
-#%%
+pollutants_data_tr=np.asarray(df_final_tr)
+pollutants_aqi=np.asarray(pollutants_aqi_final)
+pollutants_data_test=np.asarray(df_final_test)
 
 model_lstm = Sequential()
 
@@ -94,14 +91,20 @@ model_lstm.add(SeqSelfAttention(
         name='Attention'))
 
 
+# model_lstm.add(Dense(34 ,'relu'))
+# # model_lstm.add(Dropout(0.25))
+
+
+# # model_lstm.add(LSTM(50))
+# model_lstm.add(Dense(34 ,'relu'))
+model_lstm.add(keras.layers.Bidirectional(keras.layers.LSTM(units=128,
+                                                        return_sequences=True)))
 model_lstm.add(Dense(34 ,'relu'))
 # model_lstm.add(Dropout(0.25))
 
 
 # model_lstm.add(LSTM(50))
 model_lstm.add(Dense(34 ,'relu'))
-model_lstm.add(keras.layers.Bidirectional(keras.layers.LSTM(units=128,
-                                                        return_sequences=True)))
 
 model_lstm.add(Dense(15 ,'relu'))
 
@@ -117,6 +120,11 @@ model_lstm.compile(
 
 lstm_history = model_lstm.fit(pollutants_data_tr,pollutants_aqi,validation_split=0.33 , epochs = 70)
 lstm_y_pred = model_lstm.predict(pollutants_data_test)
+pred_final=[]
+for i in range(len(lstm_y_pred)):
+    temp=np.mean(lstm_y_pred[i])
+    pred_final.append(temp)
+    
 
 # plt.figure(figsize = (20,10))
 # plt.plot(pollutants_data_tr[-100:,:,0,0],pollutants_aqi[-100:],label = "Train")
@@ -126,80 +134,10 @@ lstm_y_pred = model_lstm.predict(pollutants_data_test)
 # plt.show()
 
 plt.plot(pollutants_aqi[-100:],label = "Train")
-plt.plot(np.asarray(pollutants_aqi_test[:100]),label = "Test")
-plt.plot(np.asarray(lstm_y_pred[:100]),label = 'Predict')
+plt.plot(np.asarray(pollutants_aqi_test_final[:100]),label = "Test")
+plt.plot(np.asarray(lstm_y_pred[:100,4,:]),label = 'Predict')
+plt.plot(np.asarray(pred_final[:100]),label = 'Predict_final')
 plt.legend()
 plt.show()
 
-#%%
-### a combination of LSTM and CNN for boosted performance
-
-# inputs = Input(shape=(7,1))
-
-# ### top pipeline
-
-# top_lstm = LSTM(500)(inputs)
-# top_dense = Dense(500, activation='relu')(top_lstm)
-# # top_dropout = Dropout(500)(top_dense)
-
-
-# ### bottom pipeline
-
-# bottom_dense = Dense(500)(top_dense[:,:,np.newaxis])
-# bottom_conv1 = Conv1D(
-#     500, 
-#     kernel_size=1,
-#     activation='relu'
-# )(bottom_dense)
-# bottom_conv2 = Conv1D(
-#     1000,
-#     kernel_size=50,
-#     padding='same',
-#     activation='relu'
-# )(bottom_conv1)
-# bottom_conv3 = Conv1D(
-#     500,
-#     kernel_size=10,
-#     padding='same',
-#     activation='relu'
-# )(bottom_conv2)
-# bottom_pooling = AvgPool1D(
-#     pool_size=60, 
-#     padding='same'
-# )(bottom_conv3)
-# bottom_reshape = Flatten()(bottom_conv3)
-
-
-# ### concatenate output from both pipelines
-
-# # final_concat = Concatenate()([top_dropout, bottom_reshape])
-# first_dense = Dense(500)(bottom_reshape)
-# final_dense = Dense(1)(first_dense)
-# # compile and return
-
-# complex_model = Model(inputs=inputs, outputs=final_dense)
-# complex_model.compile(loss='mean_squared_error', optimizer='adam', metrics=['mape'])
-# complex_history = complex_model.fit(
-#     pollutants_data_tr, 
-#     pollutants_aqi, 
-#     epochs=20, 
-#     batch_size=70,
-#     validation_split=0.33,
-#     verbose=2,
-#     shuffle=False
-# )
-# lstm_y_pred = complex_model.predict(pollutants_data_test)
-
-# # plt.figure(figsize = (20,10))
-# # plt.plot(pollutants_data_tr[-100:,:,0,0],pollutants_aqi[-100:],label = "Train")
-# # plt.plot(pollutants_data_test[:100],pollutants_aqi_test[:100],label = "Test")
-# # plt.plot(pollutants_data_test[:100],lstm_y_pred[:100],label = 'Predict')
-# # plt.legend()
-# # plt.show()
-
-# plt.plot(pollutants_aqi[-100:],label = "Train")
-# plt.plot(np.asarray(pollutants_aqi_test[:100]),label = "Test")
-# plt.plot(np.asarray(lstm_y_pred[:100]),label = 'Predict')
-# plt.legend()
-# plt.show()
 
