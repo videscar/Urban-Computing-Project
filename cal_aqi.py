@@ -138,18 +138,16 @@ def get_AQI_bucket(x):
         return np.NaN
 
 def get_AQI(predictions):
-    # nh3  = get_NH3_subindex(predictions[0])
-    nox  = get_NOx_subindex(predictions[3])
+    nh3  = get_NH3_subindex(predictions[3])
+    nox  = get_NOx_subindex(predictions[6])
     o3   = get_O3_subindex(predictions[2])
     co   = get_CO_subindex(predictions[0])
     so2  = get_SO2_subindex(predictions[4])
     pm10 = get_PM10_subindex(predictions[5])
     pm25 = get_PM25_subindex(predictions[1])
 
-    aqi = max(nox, o3, co, so2, pm10, pm25)
+    aqi = max(nh3, nox, o3, co, so2, pm10, pm25)
     # aqi = max(predictions)
     aqi_bucket = get_AQI_bucket(aqi)
 
     return aqi, aqi_bucket
-
-# 'CO', 'PM2.5', 'O3', 'NO2', 'SO2', 'PM10', 'NO'
