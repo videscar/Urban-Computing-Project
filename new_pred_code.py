@@ -104,35 +104,37 @@ train_norm = pollutants_data_tr
 
 #converted into array as all the methods available are for arrays and not lists
 train_norm_arr = np.asarray(train_norm)
-train_norm = np.reshape(train_norm_arr, (-1, 1))
+# train_norm = np.reshape(train_norm_arr, (-1, 1))
 
 #Scaling all values between 0 and 1 so that large values don't just dominate
 scaler = MinMaxScaler(feature_range=(0, 1))
 train_norm = scaler.fit_transform(train_norm)
-for i in range(5):
-    print(train_norm[i])
+# for i in range(5):
+#     print(train_norm[i])
     
-count = 0
-for i in range(len(train_norm)):
-    if train_norm[i] == 0:
-        count = count +1
-print('Number of null values in train_norm = ', count)
+# count = 0
+# for i in range(len(train_norm)):
+#     if train_norm[i] == 0:
+#         count = count +1
+# print('Number of null values in train_norm = ', count)
 
 test_norm = pollutants_data_test
 test_norm_arr = np.asarray(test_norm)
-test_norm = np.reshape(test_norm_arr, (-1, 1))
+# test_norm = np.reshape(test_norm_arr, (-1, 1))
 scaler = MinMaxScaler(feature_range=(0, 1))
 test_norm = scaler.fit_transform(test_norm)
-for i in range(5):
-    print(test_norm[i])
-    
-count = 0
-for i in range(len(test_norm)):
-    if test_norm[i] == 0:
-        count = count + 1 
-print('Number of null values in test_norm = ', count)
 
-test_norm = test_norm[test_norm != 0]
+
+# for i in range(5):
+#     print(test_norm[i])
+    
+# count = 0
+# for i in range(len(test_norm)):
+#     if test_norm[i] == 0:
+#         count = count + 1 
+# print('Number of null values in test_norm = ', count)
+
+# test_norm = test_norm[test_norm != 0]
 
 
 
@@ -149,38 +151,72 @@ test_norm = test_norm[test_norm != 0]
     
 from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
 
-win_length=25
+win_length=2
 batch_size=4
 # num_features=features.shape[1]
-X_train=train_norm_arr
-y_train=train_norm_arr
-X_test=test_norm_arr
-y_test=test_norm_arr
+X_train=train_norm
+y_train=train_norm
+X_test=test_norm
+y_test=test_norm
 
 train_generator = TimeseriesGenerator(X_train, y_train, length=win_length, sampling_rate=1, batch_size=batch_size)
 # val_generator = TimeseriesGenerator(X_val, y_val, length=win_length, sampling_rate=1, batch_size=batch_size)
 test_generator = TimeseriesGenerator(X_test, y_test, length=win_length, sampling_rate=1, batch_size=batch_size)
-model_LSTM = tf.keras.Sequential([
-    tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(100,  return_sequences=True), input_shape=(win_length, 7)),
-    tf.keras.layers.Dropout(0.4),
-    tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(100, return_sequences=False)),
-    tf.keras.layers.Dropout(0.4),
-    tf.keras.layers.Dense(7)
-])
+# model_LSTM = tf.keras.Sequential([
+#     tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(100,  return_sequences=True), input_shape=(win_length, 7)),
+#     tf.keras.layers.Dropout(0.4),
+#     tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(100, return_sequences=False)),
+#     tf.keras.layers.Dropout(0.4),
+#     tf.keras.layers.Dense(7)
+# ])
 
-model_LSTM.compile(optimizer=tf.keras.optimizers.Nadam(learning_rate=0.001), loss=tf.losses.MeanSquaredLogarithmicError())
+model_lstm = Sequential()
 
-tf.keras.utils.plot_model(model=model_LSTM, show_shapes=True)
+# model_lstm.add(InputLayer((7,1)))
+
+model_lstm.add(keras.layers.Bidirectional(tf.keras.layers.LSTM(100,  return_sequences=True), input_shape=(win_length, 7)))
+
+model_lstm.add(SeqSelfAttention(
+        attention_type=SeqSelfAttention.ATTENTION_TYPE_MUL,
+        attention_activation='softmax',
+        name='Attention'))
+
+
+# model_lstm.add(Dense(34 ,'relu'))
+model_lstm.add(Dropout(0.4))
+
+
+# # model_lstm.add(LSTM(50))
+# model_lstm.add(Dense(34 ,'relu'))
+model_lstm.add(keras.layers.Bidirectional(tf.keras.layers.LSTM(100, return_sequences=False)))
+model_lstm.add(Dense(34 ,'relu'))
+# model_lstm.add(Dropout(0.25))
+
+model_lstm.add(Dense(15 ,'relu'))
+
+model_lstm.add(Dense(7 ,'relu' ))
+
+model_lstm.compile(optimizer=tf.keras.optimizers.Nadam(learning_rate=0.001), loss=tf.losses.MeanSquaredLogarithmicError())
+# model_LSTM.compile(optimizer=tf.keras.optimizers.Nadam(learning_rate=0.001), loss=tf.losses.MeanSquaredLogarithmicError())
+
+# tf.keras.utils.plot_model(model=model_LSTM, show_shapes=True)
+tf.keras.utils.plot_model(model=model_lstm, show_shapes=True)
 lr_monitor = tf.keras.callbacks.ReduceLROnPlateau(monitor="val_loss", patience=3, factor=0.5, cooldown=1)
 early_stopping = tf.keras.callbacks.EarlyStopping(monitor="val_loss", patience=15, restore_best_weights=True)
-prepared_model = model_LSTM.fit(train_generator,                                  
-                                    epochs=1000, 
+# prepared_model = model_LSTM.fit(train_generator,                                  
+#                                     epochs=100, 
+#                                     shuffle=False,  
+#                                     callbacks=[lr_monitor, early_stopping])
+prepared_model = model_lstm.fit(train_generator,                                  
+                                    epochs=100, 
                                     shuffle=False,  
                                     callbacks=[lr_monitor, early_stopping])
 
-# prediction for individual pollutant
-predictions=model_LSTM.predict(test_generator)
 
+# prediction for individual pollutant
+# predictions=model_LSTM.predict(test_generator)
+predictions=model_lstm.predict(test_generator)
+predictions=scaler.inverse_transform(predictions)
 
 pred_final=[]
 for i in range(len(predictions)):
